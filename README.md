@@ -1,14 +1,322 @@
-# astrbot-plugin-helloworld
+# astrbot_plugin_bdrbirthday
 
-AstrBot 插件模板 / A template plugin for AstrBot plugin feature
+BanG Dream!（邦邦）企划角色与声优的生日提醒插件。
 
-> [!NOTE]
-> This repo is just a template of [AstrBot](https://github.com/AstrBotDevs/AstrBot) Plugin.
-> 
-> [AstrBot](https://github.com/AstrBotDevs/AstrBot) is an agentic assistant for both personal and group conversations. It can be deployed across dozens of mainstream instant messaging platforms, including QQ, Telegram, Feishu, DingTalk, Slack, LINE, Discord, Matrix, etc. In addition, it provides a reliable and extensible conversational AI infrastructure for individuals, developers, and teams. Whether you need a personal AI companion, an intelligent customer support agent, an automation assistant, or an enterprise knowledge base, AstrBot enables you to quickly build AI applications directly within your existing messaging workflows.
+按东京时间每天定点检查，把当天的生日消息推送到指定群聊。内置 115 条生日数据，覆盖角色、真人团声优、虚拟团声优、角色声优同日、前任声优五类；支持为每个人单独写文案，没写的人自动并入通用文案。
 
-# Supports
+---
 
-- [AstrBot Repo](https://github.com/AstrBotDevs/AstrBot)
-- [AstrBot Plugin Development Docs (Chinese)](https://docs.astrbot.app/dev/star/plugin-new.html)
-- [AstrBot Plugin Development Docs (English)](https://docs.astrbot.app/en/dev/star/plugin-new.html)
+## 目录
+
+- [它每天做什么](#它每天做什么)
+- [安装](#安装)
+- [第一次配置](#第一次配置)
+- [写专属文案](#写专属文案)
+- [验证文案](#验证文案)
+- [配置项](#配置项)
+- [指令](#指令)
+- [数据规则](#数据规则)
+- [发送与状态](#发送与状态)
+- [本地测试](#本地测试)
+- [常见问题](#常见问题)
+
+---
+
+## 它每天做什么
+
+每天到 `push_time`（默认东京时间 00:00，即北京时间 23:00）时：
+
+1. 取出当天所有启用的条目。
+2. 有专属文案的人，各自单独发一条。
+3. 没有专属文案的人，合并成一条通用文案，排在最前面。
+4. 同一天的所有消息按间隔逐条发到每个目标群。
+
+示例（假设当天有三个人，其中一人有专属文案）：
+
+```
+现在是东京时间7月14日，Poppin'Party的主唱兼吉他手户山香澄和美竹兰的生日，让我们祝她们生日快乐！
+（下面是你给某个人写的专属文案）
+```
+
+---
+
+## 安装
+
+1. 把整个目录放到 AstrBot 的 `data/plugins/astrbot_plugin_bdrbirthday`。
+2. 重启 AstrBot，或在 WebUI 插件页重载。
+3. 确认日志出现 `生日提醒插件已启动：push_time=00:00，时区=UTC+9`。
+
+## 第一次配置
+
+必须做的一步：告诉插件发到哪。
+
+1. 在 AstrBot 里进入插件配置页。
+2. 在「推送目标会话」（`target_sessions`）里选择要收消息的群。
+   - 如果选择器不好用，先在群里发 `/bdr umo`，把返回的字符串手动填进去。
+3. 保存。
+
+`target_sessions` 为空时插件不会推送，只会在日志里写 `未配置 target_sessions`。
+
+---
+
+## 写专属文案
+
+两种办法，选一种即可。**改源码**最直接，**改配置**不用动文件。
+
+### 方式一：直接改 `birthdays.py`（推荐）
+
+打开 [birthdays.py](birthdays.py)，找到对应那一行，在末尾加 `message="..."`。
+
+每条数据都由 `B(...)` 生成，参数顺序是：
+
+```python
+B(month, day, kind, band, position, char_name="", cv_name="", message="", group="")
+```
+
+`message` 是第 8 个参数，建议用关键字写法，不容易错位。
+
+**角色（单人）**
+
+```python
+B(7, 14, "character", "Poppin'Party", "主唱兼吉他手", "户山香澄",
+  message="今天是香澄的生日。……"),
+```
+
+**角色（同日多人，通常已经分成两行，各写各的）**
+
+```python
+B(10, 24, "character", "millsage", "鼓手", "和泉朋花", message="……"),
+B(10, 24, "character", "Roselia", "鼓手", "樱川惠", message="……"),
+```
+
+**真人团声优**（`cv_live`，记录里同时有角色名和声优名，文案主体只用声优名）
+
+```python
+B(10, 17, "cv_live", "Roselia", "主唱", "凑友希那", "相羽爱奈", message="……"),
+```
+
+**虚拟团声优**（`cv_virtual`，角色 + 声优）
+
+```python
+B(1, 13, "cv_virtual", "Afterglow", "吉他手", "青叶摩卡", "三泽纱千香",
+  message="……"),
+```
+
+**角色声优同日**（`special`，一个条目代表两个人）
+
+```python
+B(1, 13, "special", "RAISE A SUILEN", "主唱兼贝斯手", "和奏瑞依", "Raychell",
+  message="……"),
+B(3, 5, "special", "一家Dumb Rock!", "键盘手", "四宫宁月", "远野光",
+  message="……"),
+```
+
+**前任声优**（`former_cv`）
+
+```python
+B(1, 2, "former_cv", "Roselia", "键盘手", "白金燐子", "明坂聪美", message="……"),
+```
+
+**冰川双子**（同日同组，只写一条文案）
+
+```python
+B(3, 20, "character", "Pastel＊Palettes", "吉他手", "冰川日菜",
+  message="双子生日快乐……", group="hikawa-twins"),
+B(3, 20, "character", "Roselia", "吉他手", "冰川纱夜", group="hikawa-twins"),
+```
+
+同组任意一条有文案，整组就只发这一条。写在第一条上即可，不要两条都写。
+
+改完保存文件，在 WebUI 里重载插件（或重启 AstrBot）生效。
+
+### 方式二：在 AstrBot 配置里追加
+
+不改代码，在插件配置的「追加生日条目」（`extra_birthdays`）里加一条。匹配规则是：
+
+> 月 + 日 + 类别 + 角色名 + 声优名 完全一致，就覆盖内置条目。
+
+覆盖时**只应用你填了值的格子**，留空的格子沿用内置值。所以给角色补文案，只需要填这几格：
+
+| 字段 | 是否必填 | 说明 |
+|---|---|---|
+| 月 / 日 / 类别 | 必填 | 与内置数据一致 |
+| 角色名 | 必填 | 五类条目都带角色名，必须与内置数据逐字一致 |
+| 声优活动名 | 看类别 | `角色` 留空；其余四类必填，且逐字一致 |
+| 专属文案 | 必填 | 你写的内容 |
+| 乐队 / 位置 | 可留空 | 留空会自动沿用内置值 |
+| 合并组 | 可留空 | 双子的条目会自动沿用 `hikawa-twins` |
+
+示例——给冰川日菜单写文案：
+
+```
+月: 3    日: 20    类别: 角色    角色名: 冰川日菜
+专属文案: 双子生日快乐……
+其余留空
+```
+
+保存后重载插件即可。
+
+### 两种方式怎么选
+
+| | 改 `birthdays.py` | 配置 `extra_birthdays` |
+|---|---|---|
+| 是否需要改文件 | 是 | 否 |
+| 是否跟随插件更新 | 会被覆盖 | 保留 |
+| 适合 | 批量写文案、长期维护 | 少量补丁、在 WebUI 里临时改 |
+
+配置里的条目优先于源码里的内置数据。
+
+### 文案本身的规则
+
+- 专属文案是纯文本，原样发送，不做占位符替换。写不写「她/她们」由你决定。
+- 通用文案才使用模板，支持 `{date}`、`{subjects}`、`{pronoun}`（自动选她/她们）。
+- `message` 留空 = 该条目走通用文案，不会跳过。
+- 想让某条彻底不发，用 `enabled: false`（配置里取消勾选），或直接在源码里把那条注释掉。
+
+---
+
+## 验证文案
+
+不用等到 23:00。在任意会话里：
+
+```
+/bdr test 3/20
+```
+
+它会用当前配置组装当天要发的消息并直接回复，不推送、不写状态。参数支持：
+
+- 空 → 今天（按东京时间）
+- `3/20`、`3-20`、`3月20日`
+- `冰川日菜` → 按角色名或声优名模糊匹配
+
+其他两个辅助指令：
+
+```
+/bdr list 3    列出 3 月全部条目，标注「专属文案 / 通用文案」
+/bdr next      最近的下一个生日
+```
+
+如果 `/bdr test` 的输出和你想的一样，实际推送就是一样的文本。
+
+---
+
+## 配置项
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| `push_time` | string | `"00:00"` | 每日推送时间，`HH:MM`，按下面的时区解释 |
+| `timezone_offset_hours` | int | `9` | 时区偏移小时数，默认 UTC+9（日本时间） |
+| `target_sessions` | list | 空 | 推送目标会话，为空时不推送 |
+| `general_template` | text | 见下 | 通用文案模板 |
+| `template_overrides` | text | 空 | JSON 对象，按 kind 覆盖模板 |
+| `send_interval_seconds` | float | `1.0` | 多条消息之间的发送间隔 |
+| `catch_up` | bool | `true` | 启动时是否补发当天漏发的消息 |
+| `catch_up_window_minutes` | int | `120` | 补发窗口，超出后不再补发 |
+| `extra_birthdays` | template_list | 空 | 追加或覆盖生日条目 |
+
+通用文案默认值：
+
+```
+现在是东京时间{date}，{subjects}的生日，让我们祝{pronoun}生日快乐！
+```
+
+`{subjects}` 由条目类别自动拼：
+
+| kind | 主体 |
+|---|---|
+| `character` | `<band>的<position><char_name>` |
+| `cv_live` | `<band>的<position><cv_name>` |
+| `cv_virtual` | `<band>的<position><char_name>的声优<cv_name>` |
+| `special` | `<band>的<position><char_name>和她的声优<cv_name>` |
+| `former_cv` | `<band>的<position><char_name>的前任声优<cv_name>` |
+
+多项用「、」连接，最后一项用「和」；当日只有两项且其中含 `special` 时改用顿号，避免两个「和」连读。
+
+`template_overrides` 只在当天全部走通用文案的条目属于同一类别时生效，例如：
+
+```json
+{"former_cv": "今天是{date}，{subjects}的生日。"}
+```
+
+---
+
+## 指令
+
+| 指令 | 说明 |
+|---|---|
+| `/bdr test [日期或名字]` | 组装当天文案并回复，不推送、不写状态 |
+| `/bdr list [月份]` | 列出某月全部条目 |
+| `/bdr next` | 最近的下一个生日 |
+| `/bdr umo` | 输出当前会话的 UMO，用于填 `target_sessions` |
+
+---
+
+## 数据规则
+
+内置数据在 [birthdays.py](birthdays.py)，原始表格见 [birthday.md](birthday.md)。
+
+命名约定：
+
+- 角色一律写真名（和奏瑞依，不写 Layer；朝日六花，不写 LOCK）。
+- 声优一律写公开活动名（Raychell、夏芽、mika、Ayasa）。
+- 真人团声优条目在数据里同时记录角色名和声优名（例如 `凑友希那` / `相羽爱奈`），但通用文案只显示声优名。角色名只用于匹配和 `/bdr list` 显示。
+- 梦限大MewType 以 VTuber 形式活动，只有角色条目。
+- 美咲 / 米歇尔 同日，只保留美咲。
+
+特殊处理：
+
+- **冰川双子**（3/20 冰川日菜、冰川纱夜）共用 `group: hikawa-twins`，按一个单位发送。
+- **角色声优同日**（1/13 和奏瑞依 / Raychell、3/5 四宫宁月 / 远野光）用 `special`，各自算一个单位。
+
+---
+
+## 发送与状态
+
+- 每 30 秒检查一次是否到达 `push_time`；到达后按 UMO 逐个目标发送。
+- 单条发送失败重试 2 次（共 3 次尝试，间隔 3 秒），全部失败则本次不标记，下一轮或下次启动补发。
+- 状态保存在插件数据目录的 `sent_state.json`，结构为 `日期 -> UMO -> {general, units}`，原子写入，保留 30 天。
+- 同一目标当天已发出的消息不会重发；新增目标会单独补发当天尚未发给它的消息。
+
+想重新测试当天的推送，删掉 `sent_state.json` 里对应的日期键，再重载插件即可。
+
+---
+
+## 本地测试
+
+不需要 AstrBot 就能跑纯逻辑测试：
+
+```bash
+python validate_birthdays.py   # 校验内置数据（月份、日期、kind、重复键、group 配对）
+python test_logic.py           # 文案组装、分组、连接词、模板覆盖、部分覆盖
+python test_scheduler.py       # 去重、补发、重试
+```
+
+---
+
+## 常见问题
+
+**改了文案但没生效？**
+改 `birthdays.py` 后必须重载插件或重启 AstrBot。配置项保存后同样建议重载一次。
+
+**`/bdr test` 说没找到条目？**
+检查日期是否写对；按名字匹配时用角色名或声优名中的一个完整片段。
+
+**配置里追加的条目没合并到内置条目？**
+角色名、月份、日期、类别四项必须与内置数据完全一致。用 `/bdr list 3` 对照一下。角色名差一个字就会变成新增条目。
+
+**声优那一格要不要填？**
+看类别。`角色` 留空，内置角色条目本身没有声优，两边都空即视为相同；`真人团声优`、`虚拟团声优`、`角色声优同日`、`前任声优` 四类必须填，否则键对不上，会变成新增一条。不确定就先用 `/bdr list 3` 看内置数据里那一格是什么。
+
+**为什么同一天只有一条消息？**
+没写专属文案的人本来就会合并进通用文案；冰川双子无论写不写文案都只发一条。这是设计行为。
+
+**机器人重启后会重复发吗？**
+不会。同一个目标当天发过的记录在 `sent_state.json` 里。
+
+---
+
+## 已知限制
+
+- 时区固定为偏移量，不读系统时区数据库，因此不处理夏令时（日本无夏令时，无影响）。
+- 平年 2 月 29 日没有特殊策略；当前数据中也没有 2/29。
+- 未在真实 AstrBot 环境做过完整回归，`StarTools.get_data_dir`、`MessageChain`、UMO 选择器的兼容性以实际部署为准。

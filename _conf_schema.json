@@ -1,0 +1,156 @@
+{
+  "push_time": {
+    "type": "string",
+    "description": "每日推送时间",
+    "default": "00:00",
+    "hint": "按下方时区解释，格式 HH:MM。默认 UTC+9 的 00:00，对应北京时间前一天 23:00。"
+  },
+  "timezone_offset_hours": {
+    "type": "int",
+    "description": "时区偏移（小时）",
+    "default": 9,
+    "slider": {
+      "min": -12,
+      "max": 14,
+      "step": 1
+    },
+    "hint": "默认 UTC+9（日本时间）。只影响日期与时间的计算，不会修改文案里的“东京时间”字样。"
+  },
+  "target_sessions": {
+    "type": "list",
+    "description": "推送目标会话",
+    "default": [],
+    "_special": "umo",
+    "hint": "选择要接收生贺消息的群聊。为空时不会推送，只记录日志。"
+  },
+  "general_template": {
+    "type": "text",
+    "description": "通用文案模板",
+    "default": "现在是东京时间{date}，{subjects}的生日，让我们祝{pronoun}生日快乐！",
+    "hint": "仅用于没有专属文案的条目。支持 {date}、{subjects}、{pronoun} 三个占位符。"
+  },
+  "template_overrides": {
+    "type": "text",
+    "description": "按类别覆盖模板",
+    "default": "",
+    "hint": "可选，JSON 对象。按 kind 覆盖 general_template，例如 {\"former_cv\": \"……{subjects}……\"}。留空则不覆盖。"
+  },
+  "send_interval_seconds": {
+    "type": "float",
+    "description": "多条消息发送间隔（秒）",
+    "default": 1.0,
+    "slider": {
+      "min": 0.5,
+      "max": 10,
+      "step": 0.5
+    },
+    "hint": "同一天需要发送多条消息时的间隔，避免连发触发平台风控。"
+  },
+  "catch_up": {
+    "type": "bool",
+    "description": "启动时补发当天漏发的消息",
+    "default": true,
+    "hint": "机器人重启或当天推送时间不在线时，在窗口内补发尚未成功发出的条目。"
+  },
+  "catch_up_window_minutes": {
+    "type": "int",
+    "description": "补发窗口（分钟）",
+    "default": 120,
+    "slider": {
+      "min": 0,
+      "max": 720,
+      "step": 30
+    },
+    "hint": "超过推送时间多久之后不再补发。设为 0 表示只补发同一分钟内的情况。"
+  },
+  "extra_birthdays": {
+    "type": "template_list",
+    "description": "追加生日条目",
+    "hint": "在 birthday.md 内置列表之外追加或覆盖条目。同一天、同 kind、同角色名、同声优名视为同一条，只覆盖你填了的格子，留空的沿用内置值。给角色补文案时声优栏留空即可。",
+    "default": [],
+    "templates": {
+      "birthday": {
+        "name": "生日条目",
+        "display_item": "char_name",
+        "items": {
+          "month": {
+            "description": "月",
+            "type": "int",
+            "default": 1,
+            "slider": {
+              "min": 1,
+              "max": 12,
+              "step": 1
+            }
+          },
+          "day": {
+            "description": "日",
+            "type": "int",
+            "default": 1,
+            "slider": {
+              "min": 1,
+              "max": 31,
+              "step": 1
+            }
+          },
+          "kind": {
+            "description": "类别",
+            "type": "string",
+            "default": "character",
+            "options": [
+              "character",
+              "cv_live",
+              "cv_virtual",
+              "special",
+              "former_cv"
+            ],
+            "labels": [
+              "角色",
+              "真人团声优",
+              "虚拟团声优",
+              "角色声优同日",
+              "前任声优"
+            ]
+          },
+          "band": {
+            "description": "乐队",
+            "type": "string",
+            "default": ""
+          },
+          "position": {
+            "description": "位置",
+            "type": "string",
+            "default": ""
+          },
+          "char_name": {
+            "description": "角色名",
+            "type": "string",
+            "default": ""
+          },
+          "cv_name": {
+            "description": "声优活动名",
+            "type": "string",
+            "default": ""
+          },
+          "message": {
+            "description": "专属文案",
+            "type": "text",
+            "default": "",
+            "hint": "留空则使用通用文案。"
+          },
+          "group": {
+            "description": "合并组",
+            "type": "string",
+            "default": "",
+            "hint": "同一天、同组的条目会合并成一个单位，只发一条消息。"
+          },
+          "enabled": {
+            "description": "启用此条目",
+            "type": "bool",
+            "default": true
+          }
+        }
+      }
+    }
+  }
+}

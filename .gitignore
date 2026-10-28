@@ -3,6 +3,9 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# 运行时状态：取不到插件数据目录时会写到插件目录下的 data/
+data/
+
 # C extensions
 *.so
 
